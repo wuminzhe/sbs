@@ -1,4 +1,4 @@
-require "subs/version"
+require "sbs/version"
 require "thor"
 require "fileutils"
 require "find"
