@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sbs (0.1.0)
+    sbs (0.1.1)
       activesupport (~> 5.2.3)
       thor (~> 0.20.3)
 

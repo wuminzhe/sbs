@@ -13,7 +13,7 @@ module Sbs
     option :branch, :aliases => :b, :default => "master"
     def new(chain_name)
       
-      home = File.join(Dir.home, ".subs")
+      home = File.join(Dir.home, ".sbs")
       Dir.mkdir(home) if not Dir.exist?(home)
       substrate_dir = File.join(home, "substrate")
 
