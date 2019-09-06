@@ -5,7 +5,7 @@ require "sbs/version"
 Gem::Specification.new do |spec|
   spec.name          = "sbs"
   spec.version       = Sbs::VERSION
-  spec.authors       = ["Wu Minzhe"]
+  spec.authors       = ["wuminzhe"]
   spec.email         = ["wuminzhe@gmail.com"]
 
   spec.summary       = %q{A better cli tool for substrate development}

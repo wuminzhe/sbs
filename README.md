@@ -28,10 +28,12 @@ sbs new testchain -b v1.0
 
 sbs new testchain -b v1.0 -a author_name
 
-# Check the substrate version used by your project. Do it in your project directory.
+# Check the rust environment and substrate commits used by your project. Do it in your project directory.
 sbs check
 
-# details in helper
+# Show the difference between your substrate version and branch head. Do it in your project directory.
+sbs diff
+
 sbs -h
 
 ```

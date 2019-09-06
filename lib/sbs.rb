@@ -9,38 +9,165 @@ module Sbs
 
   class Cli < Thor
     desc "new CHAIN_NAME", "Create a new blockchain from substrate node template by branch."
-    option :author, :aliases => :a, :default => "Wu Minzhe"
+    option :author, :aliases => :a, :default => "wuminzhe"
     option :branch, :aliases => :b, :default => "master"
     def new(chain_name)
-      
+      dest_dir = "."
+
+      # generate your chain
+      if generate_from_node_template(chain_name, options[:branch], options[:author], dest_dir)
+        # build
+        Dir.chdir("#{dest_dir}/#{chain_name}") do
+          puts "*** Initializing WebAssembly build environment..."
+          `./scripts/init.sh`
+          
+          puts "*** Building '#{chain_name}' ..."
+          if File.exist?("./scripts/build.sh")
+            `./scripts/build.sh`
+          end
+          `cargo build`
+        end
+
+        puts ""
+        puts "Your blockchain '#{chain_name}' has been generated."
+        puts ""
+      end
+    end
+
+    desc "check", "Check the rust environment and substrate commits used by your project. Do it in your project directory."
+    def check
+      puts "Your rust environment:"
+      puts "  default: #{`rustc --version`}"
+      puts ""
+
+      puts "  stable: #{`rustc +stable --version`}"
+      puts "    targets: "
+      `rustup target list --installed --toolchain stable`.each_line do |line|
+        puts "      #{line}"
+      end
+      puts ""
+
+      puts "  nightly: #{`rustc +nightly --version`}"
+      puts "    targets: "
+      `rustup target list --installed --toolchain nightly`.each_line do |line|
+        puts "      #{line}"
+      end
+      puts ""
+
+      puts "  all toolchains: "
+      `rustup toolchain list`.each_line do |line|
+        puts "    #{line}"
+      end
+      puts ""
+
+      puts "The substrate commit your project depends:"
+      get_commits.each do |commit|
+        puts "  #{commit}"
+      end
+      puts ""
+    end
+
+    desc "diff", "Show the difference between your substrate version and branch head. Do it in your project directory."
+    option :branch, :aliases => :b, :default => "master"
+    def diff
+      commits = get_commits
+      if commits.length > 1
+        puts "Your project seems to depend on more than one substrate commit"
+        return
+      end
+      commit = commits[0]
+
+      home = File.join(Dir.home, ".sbs")
+      substrate_dir = File.join(home, "substrate")
+      tmp = File.join(home, "tmp", "/")
+      tmp_dir_1 = File.join(tmp, "your")
+      tmp_dir_2 = File.join(tmp, options[:branch])
+      FileUtils.mkdir_p(tmp_dir_1)
+      FileUtils.mkdir_p(tmp_dir_2)
+
+      # Compare the differences between the node-template you depend on and the latest node-template of the branch
+      copy_node_template(commit, tmp_dir_1)
+      copy_node_template(options[:branch], tmp_dir_2)
+
+      result = `diff -rq #{tmp_dir_1}/node-template #{tmp_dir_2}/node-template`
+      result.each_line do |line|
+        if line.start_with?("Files")
+          scans = line.scan(/Files (.+) and (.+) differ/)
+          file1 = scans[0][0]
+          file2 = scans[0][1]
+
+          puts "-------------------------------------------"
+          puts line.gsub(tmp, "")
+          puts `diff -u #{file1} #{file2}`.gsub(tmp, "")
+          puts "\n"
+        else
+          puts "-------------------------------------------"
+          puts line.gsub(tmp, "")
+          puts "\n"
+        end
+      end
+
+      `rm -rf #{tmp_dir_1} && rm -rf #{tmp_dir_2}`
+    end
+
+    private
+    def copy_node_template(branch_or_commit, dest_dir)
       home = File.join(Dir.home, ".sbs")
       Dir.mkdir(home) if not Dir.exist?(home)
       substrate_dir = File.join(home, "substrate")
 
-      puts "1. Preparing substrate..."
       if not Dir.exist?(substrate_dir)
         `git clone https://github.com/paritytech/substrate #{substrate_dir}`
       end
 
-      # checkout branch
+      # checkout branch or commit
       Dir.chdir substrate_dir do
-        `git checkout #{options[:branch]}`
-
-        if `git show-ref refs/heads/#{options[:branch]}`.strip == "" 
-          puts "Branch #{options[:branch]} not exist!"
-          return 
+        if `git cat-file -t #{branch_or_commit}`.strip != "commit"
+          puts "Not a valid branch or commit"
+          return
+        else
+          `git checkout -q #{branch_or_commit}`
+          if `git show-ref refs/heads/#{branch_or_commit}`.strip != "" # this is a branch
+            `git pull`
+          end
         end
-
-        `git pull`
       end
 
-      puts "2. Copying node-template..."
-      if not Dir.exist?("./#{chain_name}")
-        `cp -R #{substrate_dir}/node-template ./#{chain_name}`
+      `cp -R #{substrate_dir}/node-template #{dest_dir}`
+    end
+
+    def generate_from_node_template(chain_name, branch_or_commit, author, dest_dir)
+      home = File.join(Dir.home, ".sbs")
+      Dir.mkdir(home) if not Dir.exist?(home)
+      substrate_dir = File.join(home, "substrate")
+
+      puts "*** Preparing substrate..."
+      if not Dir.exist?(substrate_dir)
+        `git clone https://github.com/paritytech/substrate #{substrate_dir}`
       end
 
-      Dir.chdir("./#{chain_name}") do
-        puts "3. Customizing..."
+      # checkout branch or commit
+      is_branch = false
+      Dir.chdir substrate_dir do
+        if `git cat-file -t #{branch_or_commit}`.strip != "commit"
+          puts "Not a valid branch or commit"
+          return
+        else
+          `git checkout #{branch_or_commit}`
+          if `git show-ref refs/heads/#{branch_or_commit}`.strip != "" # this is a branch
+            is_branch = true
+            `git pull`
+          end
+        end
+      end
+
+      puts "*** Copying node-template for '#{chain_name}' ..."
+      if not Dir.exist?("#{dest_dir}/#{chain_name}")
+        `cp -R #{substrate_dir}/node-template #{dest_dir}/#{chain_name}`
+      end
+
+      Dir.chdir("#{dest_dir}/#{chain_name}") do
+        puts "*** Customizing '#{chain_name}' ..."
         Find.find(".") do |path|
           if not File.directory? path
             content = `sed "s/Substrate Node Template/#{chain_name.titleize} Node/g" "#{path}"`
@@ -59,17 +186,23 @@ module Sbs
             File.open(path, "w") do |f| f.write(content) end
 
             if path.end_with?("toml")
-              content = `sed "s/Anonymous/#{options[:author]}/g" "#{path}"`
-              File.open(path, "w") do |f| f.write(content) end
+              if not author.nil?
+                content = `sed "s/Anonymous/#{author}/g" "#{path}"`
+                File.open(path, "w") do |f| f.write(content) end
+              end
 
-              sed = "sed \"s/path = \\\"\\\.\\\.\\\/.*\\\"/git = 'https:\\\/\\\/github.com\\\/paritytech\\\/substrate.git', branch='#{options[:branch]}'/g\" #{path}"
+              if is_branch
+                sed = "sed \"s/path = \\\"\\\.\\\.\\\/.*\\\"/git = 'https:\\\/\\\/github.com\\\/paritytech\\\/substrate.git', branch='#{branch_or_commit}'/g\" #{path}"
+              else
+                sed = "sed \"s/path = \\\"\\\.\\\.\\\/.*\\\"/git = 'https:\\\/\\\/github.com\\\/paritytech\\\/substrate.git', rev='#{branch_or_commit}'/g\" #{path}"
+              end
               content = `#{sed}`
               File.open(path, "w") do |f| f.write(content) end
             end
           end
         end
         
-        puts "4. Initializing repository..."
+        puts "*** Initializing '#{chain_name}' repository..."
         `git init 2>/dev/null >/dev/null`
         `touch .gitignore`
         File.open(".gitignore", "w") do |f|
@@ -80,46 +213,12 @@ module Sbs
 **/*.rs.bk)
           f.write(gitignore)
         end
-
-        puts "5. Initializing WebAssembly build environment..."
-        `./scripts/init.sh`
-        
-        puts "6. Building..."
-        if File.exist?("./scripts/build.sh")
-          `./scripts/build.sh`
-        end
-        `cargo build`
       end
 
-      puts ""
-      puts "blockchain #{chain_name} created by #{options[:author]}"
-      puts ""
+      true
     end
 
-    desc "check", "Check the substrate version used by your project. Do it in your project directory."
-    def check
-      puts get_versions
-    end
-
-    desc "diff", "Show the difference between your substrate version and branch head. Do it in your project directory."
-    def diff
-      versions = get_versions
-      if versions.length > 1
-        puts "Your project seems to depend on more than one substrate version"
-        return
-      end
-
-      # get branch and commit
-      version = versions[0]
-      scan_branch = version.scan(/branch=(.+),/)[0]
-      branch = scan_branch.nil? ? "master" : scan_branch[0]
-      commit = version.scan(/commit=(.+)/)[0][0]
-
-      
-    end
-
-    private
-    def get_versions
+    def get_commits
       if not File.exist?("./Cargo.lock")
         puts "There is no Cargo.lock in current directory!"
         return
@@ -128,27 +227,13 @@ module Sbs
       content = File.open("./Cargo.lock").read
       result = content.scan(/substrate\.git(.*#.+)"$/).uniq
 
-      versions = []
+      commits = []
       result.each do |item|
         splits = item[0].split("#")
-        if splits[0].start_with?("?")
-          versions << "#{splits[0][1 ..]}, commit=#{splits[1].strip}"
-        else
-          commit = splits[1].strip
-          versions << "commit=#{commit}"
-        end
+        commits << splits[1].strip
       end
       
-      versions = versions.uniq
-      versions.select do |version|
-        included = false
-        versions.each do |v|
-          if v != version && v.include?(version)
-            included = true
-          end
-        end
-        not included
-      end
+      commits.uniq
     end
 
   end
