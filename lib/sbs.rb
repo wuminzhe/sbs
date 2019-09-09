@@ -3,6 +3,7 @@ require "thor"
 require "fileutils"
 require "find"
 require "active_support/core_ext/string"
+require "colorize"
 
 module Sbs
   class Error < StandardError; end
@@ -68,6 +69,8 @@ module Sbs
     end
 
     desc "diff", "Show the difference between your substrate version and branch head. Do it in your project directory."
+    option :list, :aliases => :l, :type => :boolean
+    option :full, :aliases => :f, :type => :boolean
     option :branch, :aliases => :b, :default => "master"
     def diff
       commits = get_commits
@@ -86,54 +89,78 @@ module Sbs
       FileUtils.mkdir_p(tmp_dir_2)
 
       # Compare the differences between the node-template you depend on and the latest node-template of the branch
-      copy_node_template(commit, tmp_dir_1)
-      copy_node_template(options[:branch], tmp_dir_2)
+      node_template_1 = copy_node_template(commit, tmp_dir_1)
+      node_template_2 = copy_node_template(options[:branch], tmp_dir_2)
 
-      result = `diff -rq #{tmp_dir_1}/node-template #{tmp_dir_2}/node-template`
-      result.each_line do |line|
-        if line.start_with?("Files")
-          scans = line.scan(/Files (.+) and (.+) differ/)
-          file1 = scans[0][0]
-          file2 = scans[0][1]
+      diff_cmd = "diff -rq #{tmp_dir_1}/#{node_template_1} #{tmp_dir_2}/#{node_template_2}"
 
-          puts "-------------------------------------------"
-          puts line.gsub(tmp, "")
-          puts `diff -u #{file1} #{file2}`.gsub(tmp, "")
-          puts "\n"
-        else
-          puts "-------------------------------------------"
-          puts line.gsub(tmp, "")
-          puts "\n"
+      if (not options[:list]) && (not options[:full]) && (`fzf --version` =~ /^\d+\.\d+\.\d /)
+        diff = `#{diff_cmd} | fzf`
+        show_file_diff(tmp, diff)
+      else
+        diffs = `#{diff_cmd}`
+        diffs.each_line do |diff|
+          if options[:list]
+            puts(diff.gsub(tmp, "").colorize(:green).underline) unless diff.include?("Cargo.lock")
+          else
+            show_file_diff(tmp, diff) unless diff.include?("Cargo.lock")
+          end
         end
-      end
-
-      `rm -rf #{tmp_dir_1} && rm -rf #{tmp_dir_2}`
+      end 
     end
 
     private
     def copy_node_template(branch_or_commit, dest_dir)
+      # clone or update substrate
       home = File.join(Dir.home, ".sbs")
       Dir.mkdir(home) if not Dir.exist?(home)
       substrate_dir = File.join(home, "substrate")
 
       if not Dir.exist?(substrate_dir)
-        `git clone https://github.com/paritytech/substrate #{substrate_dir}`
+        `git clone -q https://github.com/paritytech/substrate #{substrate_dir}`
       end
 
-      # checkout branch or commit
+      Dir.chdir substrate_dir do
+        `git checkout -q master`
+        `git pull -q`
+      end
+
+      # check exist
       Dir.chdir substrate_dir do
         if `git cat-file -t #{branch_or_commit}`.strip != "commit"
-          puts "Not a valid branch or commit"
-          return
-        else
-          `git checkout -q #{branch_or_commit}`
-          if `git show-ref refs/heads/#{branch_or_commit}`.strip != "" # this is a branch
-            `git pull`
-          end
+          raise "Not a valid branch or commit: #{branch_or_commit}"
         end
       end
 
-      `cp -R #{substrate_dir}/node-template #{dest_dir}`
+      # get commit if it is a branch
+      commit = `git ls-remote https://github.com/paritytech/substrate refs/heads/#{branch_or_commit} | cut -f 1`.strip
+      commit = branch_or_commit if commit == "" 
+
+      # checkout commit and then copy to dest dir
+      node_template_name = "node-template-#{commit[0 .. 9]}"
+      if not Dir.exist?("#{dest_dir}/#{node_template_name}")
+        Dir.chdir substrate_dir do
+          `git checkout -q #{commit}`
+          `cp -R ./node-template #{dest_dir}/#{node_template_name}`
+        end
+      end
+
+      return node_template_name
+    end
+
+    def show_file_diff(tmp, diff)
+      if diff.start_with?("Files")
+        scans = diff.scan(/Files (.+) and (.+) differ/)
+        file1 = scans[0][0]
+        file2 = scans[0][1]
+
+        puts diff.gsub(tmp, "").colorize(:green).underline
+        puts `diff -u #{file1} #{file2}`.gsub(tmp, "")
+        puts "\n"
+      else
+        puts diff.gsub(tmp, "").colorize(:green).underline
+        puts "\n"
+      end
     end
 
     def generate_from_node_template(chain_name, branch_or_commit, author, dest_dir)

@@ -1,6 +1,6 @@
 # sbs
 
-A better cli tool for substrate development.
+A better substrate up tool.
 
 ## Installation
 
@@ -20,23 +20,38 @@ Or install it yourself as:
 
 ## Usage
 
-```shell
-# default branch is master
-sbs new testchain
+- **new**: generate new blockchain from node-template
 
-sbs new testchain -b v1.0
+  ```shell
+  # Default branch is master
+  sbs new testchain
+  
+  sbs new testchain -b v1.0
+  
+  sbs new testchain -b v1.0 -a author
+  ```
 
-sbs new testchain -b v1.0 -a author_name
+- **check**: Check your rust environment and substrate commits used by your project. Do it in your project directory
 
-# Check the rust environment and substrate commits used by your project. Do it in your project directory.
-sbs check
+  ```shell
+  sbs check
+  ```
 
-# Show the difference between your substrate version and branch head. Do it in your project directory.
-sbs diff
+- **diff**: Compare the difference between your node-template and the branch's node-template
 
-sbs -h
+  ```shell
+  # If fzf installed, a selectable diff list will appear, and the diff content will be displayed when you choose.
+  # If no fzf, all diffs with content will be shown.
+  sbs diff -b v1.0
+  
+  # Only list diffs without content.
+  sbs diff -l -b v1.0
+  
+  # Default branch is master.
+  sbs diff
+  ```
 
-```
+  [fzf](https://github.com/junegunn/fzf) is a great command-line fuzzy finder.
 
 ## Development
 
