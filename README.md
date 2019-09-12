@@ -52,6 +52,16 @@ Or install it yourself as:
   ```
 
   [fzf](https://github.com/junegunn/fzf) is a great command-line fuzzy finder.
+## examples
+
+- update your chain to lastest substrate node template
+
+  ```
+  1. sbs diff
+  2. Modify your chain based on the results of 'sbs diff'
+  3. do 'cargo update' in your chain dir.
+  4. see what commit your chain depends on with 'sbs check', it must be the lastest substrate commit
+  ```
 
 ## Development
 
