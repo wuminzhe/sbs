@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sbs (0.1.6)
+    sbs (0.1.7)
       activesupport (~> 5.2.3)
       colorize (~> 0.8.1)
       thor (~> 0.20.3)

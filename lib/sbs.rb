@@ -9,14 +9,14 @@ module Sbs
   class Error < StandardError; end
 
   class Cli < Thor
-    desc "new CHAIN_NAME", "Create a new blockchain from substrate node template by branch."
+    desc "new CHAIN_NAME", "Create a new blockchain from substrate node template by branch or commit."
     option :author, :aliases => :a, :default => "wuminzhe"
-    option :branch, :aliases => :b, :default => "master"
+    option :version, :aliases => :v, :default => "master"
     def new(chain_name)
       dest_dir = "."
 
       # generate your chain
-      if generate_from_node_template(chain_name, options[:branch], options[:author], dest_dir)
+      if generate_from_node_template(chain_name, options[:version], options[:author], dest_dir)
         # build
         Dir.chdir("#{dest_dir}/#{chain_name}") do
           puts "*** Initializing WebAssembly build environment..."
@@ -70,10 +70,10 @@ module Sbs
       puts ""
     end
 
-    desc "diff", "Show the difference between your substrate version and branch head. Do it in your project directory."
+    desc "diff", "Show the difference between your substrate version and branch head or commit. Do it in your project directory."
     option :list, :aliases => :l, :type => :boolean
     option :full, :aliases => :f, :type => :boolean
-    option :branch, :aliases => :b, :default => "master"
+    option :version, :aliases => :v, :default => "master"
     def diff
       commits = get_commits
       if commits.length > 1
@@ -86,7 +86,7 @@ module Sbs
       substrate_dir = File.join(home, "substrate")
       tmp = File.join(home, "tmp", "/")
       tmp_dir_1 = File.join(tmp, "your")
-      tmp_dir_2 = File.join(tmp, options[:branch])
+      tmp_dir_2 = File.join(tmp, options[:version])
       FileUtils.mkdir_p(tmp_dir_1)
       FileUtils.mkdir_p(tmp_dir_2)
 

@@ -23,12 +23,14 @@ Or install it yourself as:
 - **new**: generate new blockchain from node-template
 
   ```shell
-  # Default branch is master
+  # Default version is branch master
   sbs new testchain
   
-  sbs new testchain -b v1.0
+  sbs new testchain -v a2a0eb5398d6223e531455b4c155ef053a4a3a2b
+
+  sbs new testchain -v v1.0
   
-  sbs new testchain -b v1.0 -a author
+  sbs new testchain -v v1.0 -a author
   ```
 
 - **check**: Check your rust environment and substrate commits used by your project. Do it in your project directory
@@ -42,10 +44,10 @@ Or install it yourself as:
   ```shell
   # If fzf installed, a selectable diff list will appear, and the diff content will be displayed when you choose.
   # If no fzf, all diffs with content will be shown.
-  sbs diff -b v1.0
+  sbs diff -v v1.0
   
   # Only list diffs without content.
-  sbs diff -l -b v1.0
+  sbs diff -l -v v1.0
   
   # Default branch is master.
   sbs diff
