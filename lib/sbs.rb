@@ -35,35 +35,37 @@ module Sbs
       end
     end
 
-    desc "check", "Check the rust environment and substrate commits used by your project. Do it in your project directory."
+    desc "check", "Check the rust environment and substrate version used by your project. Do it in your project directory."
     def check
-      puts "Your rust environment:"
-      puts "  default: #{`rustc --version`}"
-      puts ""
+      if `which rustc`.strip != ""
+        puts "Your rust environment:"
+        puts "  default: #{`rustc --version`}"
+        puts ""
 
-      puts "  stable: #{`rustc +stable --version`}"
-      puts "    targets: "
-      `rustup target list --installed --toolchain stable`.each_line do |line|
-        puts "      #{line}"
+        puts "  stable: #{`rustc +stable --version`}"
+        puts "    targets: "
+        `rustup target list --installed --toolchain stable`.each_line do |line|
+          puts "      #{line}"
+        end
+        puts ""
+
+        puts "  nightly: #{`rustc +nightly --version`}"
+        puts "    targets: "
+        `rustup target list --installed --toolchain nightly`.each_line do |line|
+          puts "      #{line}"
+        end
+        puts ""
+
+        puts "  all toolchains: "
+        `rustup toolchain list`.each_line do |line|
+          puts "    #{line}"
+        end
+        puts ""
       end
-      puts ""
 
-      puts "  nightly: #{`rustc +nightly --version`}"
-      puts "    targets: "
-      `rustup target list --installed --toolchain nightly`.each_line do |line|
-        puts "      #{line}"
-      end
-      puts ""
-
-      puts "  all toolchains: "
-      `rustup toolchain list`.each_line do |line|
-        puts "    #{line}"
-      end
-      puts ""
-
-      puts "The substrate commit your project depends:"
+      puts "The substrate version your project depends:"
       get_commits.each do |commit|
-        puts "  #{commit}"
+        puts "#{commit}"
       end
       puts ""
     end
