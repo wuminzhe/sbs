@@ -199,22 +199,27 @@ module Sbs
         puts "*** Customizing '#{chain_name}' ..."
         Find.find(".") do |path|
           if not File.directory? path
-            content = `sed "s/Substrate Node Template/#{chain_name.titleize} Node/g" "#{path}"`
-            File.open(path, "w") do |f| f.write(content) end
 
-            content = `sed "s/Substrate Node/#{chain_name.titleize} Node/g" "#{path}"`
-            File.open(path, "w") do |f| f.write(content) end
+            if path.end_with?('README.md')
+              content = `sed "s/Substrate Node Template/#{chain_name.titleize} Node/g" "#{path}"`
+              File.open(path, "w") do |f| f.write(content) end
 
-            content = `sed "s/Substrate node/#{chain_name.titleize} node/g" "#{path}"`
-            File.open(path, "w") do |f| f.write(content) end
+              content = `sed "s/Substrate node/#{chain_name.titleize} node/g" "#{path}"`
+              File.open(path, "w") do |f| f.write(content) end
+            end
 
-            content = `sed "s/node_template/#{chain_name.titleize.gsub(" ", "").underscore}/g" "#{path}"`
-            File.open(path, "w") do |f| f.write(content) end
+            if path.end_with?('main.rs')
+              content = `sed "s/Substrate Node/#{chain_name.titleize} Node/g" "#{path}"`
+              File.open(path, "w") do |f| f.write(content) end
+            end
 
-            content = `sed "s/node-template/#{chain_name.titleize.downcase.gsub(" ", "-")}/g" "#{path}"`
-            File.open(path, "w") do |f| f.write(content) end
+            # content = `sed "s/node_template/#{chain_name.titleize.gsub(" ", "").underscore}/g" "#{path}"`
+            # File.open(path, "w") do |f| f.write(content) end
 
-            if path.end_with?("toml")
+            if path.end_with?('Cargo.toml')
+              content = `sed "s/node-template/#{chain_name.titleize.downcase.gsub(" ", "-")}/g" "#{path}"`
+              File.open(path, "w") do |f| f.write(content) end
+
               if not author.nil?
                 content = `sed "s/Anonymous/#{author}/g" "#{path}"`
                 File.open(path, "w") do |f| f.write(content) end
@@ -223,11 +228,13 @@ module Sbs
               if is_branch
                 sed = "sed \"s/path = \\\"\\\.\\\.\\\/.*\\\"/git = 'https:\\\/\\\/github.com\\\/paritytech\\\/substrate.git', branch='#{branch_or_commit}'/g\" #{path}"
               else
+                puts "fuck............"
                 sed = "sed \"s/path = \\\"\\\.\\\.\\\/.*\\\"/git = 'https:\\\/\\\/github.com\\\/paritytech\\\/substrate.git', rev='#{branch_or_commit}'/g\" #{path}"
               end
               content = `#{sed}`
               File.open(path, "w") do |f| f.write(content) end
             end
+
           end
         end
         
