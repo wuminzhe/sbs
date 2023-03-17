@@ -31,6 +31,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", "~> 13.0"
 
   spec.add_dependency "thor", "~> 0.20.3"
-  spec.add_dependency "activesupport", "~> 5.2.3"
+  spec.add_dependency "activesupport", ">= 5.2.3", "< 7.1.0"
   spec.add_dependency "colorize", "~> 0.8.1"
 end
